@@ -2,7 +2,7 @@
   "name": "tablelens",
   "version": "1.0.0",
   "private": true,
-  "description": "TableLens frontend + Vercel serverless API",
+  "description": "TableLens docs site + Vercel serverless API",
   "engines": {
     "node": ">=18"
   },
