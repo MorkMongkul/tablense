@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TableLens — AI Table Extractor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="brand">
+    <img class="brand-logo" src="./tablense_logo.png" alt="TableLens logo" />
+    <div class="brand-name">Tab<span>Lens</span></div>
+  </div>
+  <div class="header-right">
+    <div class="model-pill" id="model-pill" onclick="toggleModelMenu()">
+      <div class="model-dot"></div>
+      <span id="model-pill-label">gemini-3-flash-preview</span>
+      <span style="font-size:9px;opacity:0.5">▼</span>
+      <!-- Model dropdown -->
+      <div class="model-dropdown" id="model-dropdown">
+        <div class="dropdown-section">
+          <div class="dropdown-label">Gemini 3 (Preview)</div>
+          <div class="model-option selected" data-model="gemini-3-flash-preview" data-provider="gemini" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-3-flash-preview</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="model-option-tag tag-best">Latest</span>
+              <span class="checkmark" id="check-gemini-3-flash-preview">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-3.1-flash-lite-preview" data-provider="gemini" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-3.1-flash-lite-preview</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="checkmark" id="check-gemini-3.1-flash-lite-preview" style="display:none">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-3.1-pro-preview" data-provider="gemini" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-3.1-pro-preview</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-best">Best</span>
+              <span class="checkmark" id="check-gemini-3.1-pro-preview" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown-section">
+          <div class="dropdown-label">Gemini 2.5 (Stable)</div>
+          <div class="model-option" data-model="gemini-2.5-flash" data-provider="gemini" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-2.5-flash</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="checkmark" id="check-gemini-2.5-flash" style="display:none">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-2.5-flash-lite" data-provider="gemini" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-2.5-flash-lite</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="checkmark" id="check-gemini-2.5-flash-lite" style="display:none">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-2.5-pro" data-provider="gemini" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-2.5-pro</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-best">Best</span>
+              <span class="checkmark" id="check-gemini-2.5-pro" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown-section">
+          <div class="dropdown-label">Groq Vision</div>
+          <div class="model-option" data-model="meta-llama/llama-4-scout-17b-16e-instruct" data-provider="groq" onclick="selectModel(this)">
+            <span class="model-option-name">meta-llama/llama-4-scout-17b-16e-instruct</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-best">Best</span>
+              <span class="checkmark" id="check-meta-llama/llama-4-scout-17b-16e-instruct" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown-section">
+          <div class="dropdown-label">NVIDIA NIM</div>
+          <div class="model-option" data-model="nvidia/llama-3.1-nemotron-nano-vl-8b-v1" data-provider="nvidia" onclick="selectModel(this)">
+            <span class="model-option-name">nvidia/llama-3.1-nemotron-nano-vl-8b-v1</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-best">Vision</span>
+              <span class="checkmark" id="check-nvidia/llama-3.1-nemotron-nano-vl-8b-v1" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown-section">
+          <div class="dropdown-label">Google Vision OCR</div>
+          <div class="model-option" data-model="google-vision-ocr" data-provider="gcv" onclick="selectModel(this)">
+            <span class="model-option-name">google-vision-ocr</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">OCR</span>
+              <span class="checkmark" id="check-google-vision-ocr" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="settings-btn" onclick="openAbout()" title="About">i</button>
+  </div>
+</header>
+
+<!-- About Modal -->
+<div class="modal-overlay" id="about-modal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">About</div>
+      <button class="modal-close" onclick="closeAbout()">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:1.1rem;">
+      <div class="about-block">
+        <div class="about-item">
+          <span class="about-label">Author</span>
+          <span class="about-value">MORK Mongkul</span>
+        </div>
+        <div class="about-item">
+          <span class="about-label">Website</span>
+          <span class="about-value">https://www.morkmongkul.dev</span>
+        </div>
+        <div class="about-item">
+          <span class="about-label">Contact</span>
+          <span class="about-value">morkmongkul369@gmail.com</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeAbout()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Full preview" />
+</div>
+
+<!-- Main -->
+<div class="container">
+  <div class="hero">
+    <div class="hero-tag">✦ AI-Powered</div>
+    <h1>Extract data from<br><em>any images and pdf with spatial awareness</em></h1>
+    <p class="hero-sub">Upload images or pdf and get structured data instantly.</p>
+  </div>
+
+  <div class="app-card">
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Image</span>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept="image/jpeg,image/png,application/pdf" multiple />
+          <span class="upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="5" width="16" height="14" rx="2" />
+              <path d="M4 10h16M10 5v14" />
+            </svg>
+          </span>
+          <div class="upload-text"><strong>Drop your files here</strong></div>
+          <div class="upload-types">JPG · PNG · PDF (<=10MB) · up to 30 pages</div>
+        </div>
+        <div class="preview-card" id="preview-card">
+          <img class="preview-img" id="preview-img" src="" alt="" onclick="openLightbox(this.src)" title="Click to enlarge" />
+          <div class="preview-footer">
+            <span class="preview-name" id="preview-name"></span>
+            <button class="preview-rm" onclick="clearImage()" title="Remove">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Output Format</span>
+        <div class="fmt-tabs">
+          <button class="fmt-tab active" data-fmt="table" onclick="setFmt(this)">
+            <span class="fmt-tab-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <path d="M3 9h18M9 4v16" />
+              </svg>
+            </span>
+            <span class="fmt-tab-label">Table</span>
+          </button>
+          <button class="fmt-tab" data-fmt="json" onclick="setFmt(this)">
+            <span class="fmt-tab-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 4c-2 0-3 2-3 4v2c0 1-1 2-2 2 1 0 2 1 2 2v2c0 2 1 4 3 4" />
+                <path d="M15 4c2 0 3 2 3 4v2c0 1 1 2 2 2-1 0-2 1-2 2v2c0 2-1 4-3 4" />
+              </svg>
+            </span>
+            <span class="fmt-tab-label">JSON</span>
+          </button>
+          <button class="fmt-tab" data-fmt="csv" onclick="setFmt(this)">
+            <span class="fmt-tab-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v4h4" />
+                <path d="M9 12h6M9 16h6M9 8h2" />
+              </svg>
+            </span>
+            <span class="fmt-tab-label">CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Extra Instructions</span>
+        <textarea class="prompt-input" id="extra-prompt" placeholder="e.g. Preserve Khmer characters exactly. Treat merged cells by repeating values."></textarea>
+      </div>
+
+      <button class="extract-btn" id="extract-btn" onclick="doExtract()">
+        <div class="btn-spinner" id="btn-spinner"></div>
+        <span id="btn-label">Extract Table</span>
+      </button>
+
+    </div>
+
+    <!-- Output panel -->
+    <div class="output-panel">
+      <div class="output-topbar">
+        <div class="output-title">
+          Result
+          <span class="count-badge" id="count-badge"></span>
+        </div>
+        <div class="output-actions">
+          <button class="act-btn" id="copy-btn" onclick="doCopy()">⎘ Copy</button>
+          <button class="act-btn" id="dl-btn" onclick="doDownload()">↓ Download</button>
+        </div>
+      </div>
+
+      <div class="empty-state" id="empty-state">
+        <div class="empty-illustration">
+          <div class="ec hd w2"></div><div class="ec hd"></div><div class="ec hd"></div><div class="ec hd"></div>
+          <div class="ec w2"></div><div class="ec"></div><div class="ec"></div><div class="ec"></div>
+          <div class="ec w2"></div><div class="ec"></div><div class="ec"></div><div class="ec"></div>
+          <div class="ec w2"></div><div class="ec"></div><div class="ec"></div><div class="ec"></div>
+        </div>
+        <div class="empty-title">No result yet</div>
+        <div class="empty-sub">Upload an image, select a model, then hit Extract.</div>
+      </div>
+
+      <div class="output-content" id="output-content"></div>
+
+      <div class="statusbar">
+        <div class="status-led idle" id="status-led"></div>
+        <span class="status-text" id="status-text">Ready</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  &copy; 2026 Tablense.All rights reserved.
+</footer>
+
+<script src="./app.js"></script>
+</body>
+</html>

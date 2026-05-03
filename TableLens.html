@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TableLens — AI Table Extractor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #f5f2ec;
+  --bg2:      #ede9e0;
+  --bg3:      #e4dfd4;
+  --ink:      #1c1a16;
+  --ink2:     #5a5548;
+  --ink3:     #9a9286;
+  --line:     rgba(28,26,22,0.12);
+  --line2:    rgba(28,26,22,0.07);
+  --green:    #2d6a4f;
+  --green-bg: #d8f3dc;
+  --green-lt: #f0faf2;
+  --amber:    #92400e;
+  --amber-bg: #fef3c7;
+  --red:      #991b1b;
+  --red-bg:   #fee2e2;
+  --radius:   12px;
+  --shadow:   0 2px 12px rgba(28,26,22,0.08), 0 0 0 1px rgba(28,26,22,0.06);
+  --shadow-lg:0 8px 40px rgba(28,26,22,0.14), 0 0 0 1px rgba(28,26,22,0.06);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Subtle dot-grid background ─── */
+body::before {
+  content:'';
+  position:fixed;inset:0;
+  background-image: radial-gradient(circle, rgba(28,26,22,0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ─── Header ─── */
+header {
+  position: sticky; top:0; z-index:100;
+  background: rgba(245,242,236,0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-icon {
+  width: 32px;height:32px;
+  background: var(--ink);
+  border-radius: 8px;
+  display: flex;align-items:center;justify-content:center;
+  font-size: 16px;
+}
+.brand-name {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.brand-name span { color: var(--green); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-pill {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 5px 10px 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ink2);
+  position: relative;
+}
+.model-pill:hover { border-color: rgba(28,26,22,0.25); background: var(--bg3); }
+.model-dot {
+  width: 7px;height:7px;
+  border-radius:50%;
+  background: var(--green);
+  animation: blink 2.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.settings-btn {
+  width:34px;height:34px;
+  border-radius:8px;
+  background:var(--bg2);
+  border:1px solid var(--line);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+  transition: all 0.15s;
+  color: var(--ink2);
+}
+.settings-btn:hover { background:var(--bg3); border-color:rgba(28,26,22,0.25); }
+
+/* ─── Model dropdown ─── */
+.model-dropdown {
+  position:absolute;
+  top: calc(100% + 8px);
+  right:0;
+  background:white;
+  border-radius:var(--radius);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  min-width: 260px;
+  z-index:200;
+  overflow:hidden;
+  display:none;
+  animation: popIn 0.15s ease;
+}
+.model-dropdown.open { display:block; }
+@keyframes popIn {
+  from { opacity:0; transform:translateY(-4px) scale(0.98); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+.dropdown-section {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line2);
+}
+.dropdown-section:last-child { border-bottom: none; }
+.dropdown-label {
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.08em;
+  color: var(--ink3);
+  padding: 4px 14px 6px;
+  text-transform: uppercase;
+}
+.model-option {
+  padding: 8px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: background 0.1s;
+}
+.model-option:hover { background: var(--bg2); }
+.model-option.selected { background: var(--green-lt); }
+.model-option-name {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink);
+}
+.model-option-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.tag-free { background: var(--green-bg); color: var(--green); }
+.tag-fast { background: var(--amber-bg); color: var(--amber); }
+.tag-best { background: #ede9fe; color: #5b21b6; }
+.checkmark { color: var(--green); font-size: 14px; }
+
+/* ─── Settings modal ─── */
+.modal-overlay {
+  position:fixed;inset:0;
+  background:rgba(28,26,22,0.4);
+  z-index:300;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:white;
+  border-radius:16px;
+  box-shadow:var(--shadow-lg);
+  width:min(420px,92vw);
+  animation: modalIn 0.2s ease;
+}
+@keyframes modalIn {
+  from{opacity:0;transform:translateY(10px) scale(0.97)}
+  to{opacity:1;transform:none}
+}
+.modal-header {
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--line2);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.modal-title {
+  font-family:'Fraunces',serif;
+  font-size:18px;
+  font-weight:600;
+  letter-spacing:-0.02em;
+}
+.modal-close {
+  width:28px;height:28px;
+  border-radius:6px;
+  background:none;
+  border:1px solid var(--line);
+  cursor:pointer;
+  font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink2);
+  transition:all 0.1s;
+}
+.modal-close:hover { background:var(--bg2); }
+.modal-body { padding: 1.25rem 1.5rem; }
+.modal-foot {
+  padding: 1rem 1.5rem;
+  border-top:1px solid var(--line2);
+  display:flex;gap:8px;justify-content:flex-end;
+}
+
+.field-label {
+  font-size:12px;
+  font-weight:500;
+  color:var(--ink2);
+  margin-bottom:6px;
+  display:block;
+}
+.field-hint {
+  font-size:11px;
+  color:var(--ink3);
+  margin-top:5px;
+  font-family:'IBM Plex Mono',monospace;
+}
+.field-hint a { color:var(--green); text-decoration:none; }
+.field-hint a:hover { text-decoration:underline; }
+
+.input-wrap { position:relative; }
+.text-input {
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:10px 38px 10px 12px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  color:var(--ink);
+  outline:none;
+  transition:border-color 0.15s;
+}
+.text-input:focus { border-color:rgba(28,26,22,0.4); }
+.input-eye {
+  position:absolute;right:10px;top:50%;
+  transform:translateY(-50%);
+  background:none;border:none;
+  cursor:pointer;font-size:14px;
+  color:var(--ink3);
+  padding:2px;
+  line-height:1;
+}
+.input-eye:hover { color:var(--ink); }
+
+.key-status {
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;
+  font-family:'IBM Plex Mono',monospace;
+  margin-top:6px;
+  height:16px;
+}
+.key-status-dot { width:6px;height:6px;border-radius:50%; }
+
+.btn {
+  border-radius:8px;
+  padding:8px 16px;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.15s;
+  border:none;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn-ghost {
+  background:none;
+  border:1px solid var(--line);
+  color:var(--ink2);
+}
+.btn-ghost:hover { background:var(--bg2); }
+.btn-primary {
+  background:var(--ink);
+  color:white;
+}
+.btn-primary:hover { background:#2d2b26; }
+
+/* ─── Main layout ─── */
+.container {
+  position:relative;z-index:1;
+  max-width:1200px;
+  margin:0 auto;
+  padding:2.5rem 2rem;
+}
+
+.hero {
+  text-align:center;
+  margin-bottom:2.5rem;
+}
+.hero-tag {
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--green-bg);
+  color:var(--green);
+  border-radius:20px;
+  padding:4px 12px;
+  font-size:11px;
+  font-family:'IBM Plex Mono',monospace;
+  font-weight:500;
+  margin-bottom:14px;
+  letter-spacing:0.04em;
+}
+.hero h1 {
+  font-family:'Fraunces',serif;
+  font-size:clamp(2rem,4vw,3rem);
+  font-weight:300;
+  letter-spacing:-0.04em;
+  line-height:1.1;
+  color:var(--ink);
+  margin-bottom:10px;
+}
+.hero h1 em {
+  font-style:italic;
+  color:var(--green);
+}
+.hero-sub {
+  font-size:14px;
+  color:var(--ink2);
+  line-height:1.6;
+}
+
+/* ─── App card ─── */
+.app-card {
+  background:white;
+  border-radius:20px;
+  box-shadow:var(--shadow-lg);
+  overflow:hidden;
+  display:grid;
+  grid-template-columns:360px 1fr;
+  min-height:540px;
+}
+
+/* ─── Left sidebar ─── */
+.sidebar {
+  background:var(--bg);
+  border-right:1px solid var(--line);
+  padding:1.5rem;
+  display:flex;
+  flex-direction:column;
+  gap:1.25rem;
+  overflow-y:auto;
+}
+
+.sidebar-section {}
+.sidebar-label {
+  font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--ink3);
+  font-family:'IBM Plex Mono',monospace;
+  margin-bottom:8px;
+  display:block;
+}
+
+/* Upload zone */
+.upload-zone {
+  border:1.5px dashed var(--line);
+  border-radius:var(--radius);
+  padding:1.75rem 1rem;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+  overflow:hidden;
+  background:rgba(255,255,255,0.5);
+}
+.upload-zone:hover, .upload-zone.over {
+  border-color:var(--green);
+  background:var(--green-lt);
+}
+.upload-zone input {
+  position:absolute;inset:0;
+  opacity:0;cursor:pointer;
+  width:100%;height:100%;
+}
+.upload-icon {
+  font-size:28px;margin-bottom:8px;display:block;
+  transition:transform 0.2s;
+}
+.upload-zone:hover .upload-icon { transform:translateY(-2px); }
+.upload-text { font-size:12px; color:var(--ink2); line-height:1.6; }
+.upload-text strong { color:var(--ink); font-weight:600; }
+.upload-types {
+  font-size:10px;
+  font-family:'IBM Plex Mono',monospace;
+  color:var(--ink3);
+  margin-top:4px;
+}
+
+/* Preview */
+.preview-card {
+  display:none;
+  border-radius:var(--radius);
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:white;
+  position:relative;
+}
+.preview-img {
+  width:100%;
+  display:block;
+  max-height:180px;
+  object-fit:cover;
+  cursor:pointer;
+}
+.preview-footer {
+  padding:7px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--line2);
+}
+.preview-name {
+  font-size:11px;
+  font-family:'IBM Plex Mono',monospace;
+  color:var(--ink2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  max-width:200px;
+}
+.preview-rm {
+  width:22px;height:22px;
+  border-radius:5px;
+  background:var(--bg2);
+  border:1px solid var(--line);
+  cursor:pointer;
+  font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink2);
+  flex-shrink:0;
+  transition:all 0.1s;
+}
+.preview-rm:hover { background:var(--red-bg); color:var(--red); border-color:rgba(153,27,27,0.2); }
+
+/* Format tabs */
+.fmt-tabs {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:5px;
+}
+.fmt-tab {
+  background:white;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:9px 6px 7px;
+  cursor:pointer;
+  text-align:center;
+  transition:all 0.15s;
+  color:var(--ink3);
+}
+.fmt-tab:hover { border-color:rgba(28,26,22,0.25); color:var(--ink2); }
+.fmt-tab.active {
+  background:var(--ink);
+  border-color:var(--ink);
+  color:white;
+}
+.fmt-tab-icon { font-size:16px;display:block;margin-bottom:3px; }
+.fmt-tab-label { font-size:11px;font-weight:500; }
+
+/* Prompt */
+.prompt-input {
+  width:100%;
+  background:white;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:9px 11px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  color:var(--ink);
+  outline:none;
+  resize:vertical;
+  min-height:72px;
+  line-height:1.6;
+  transition:border-color 0.15s;
+}
+.prompt-input:focus { border-color:rgba(28,26,22,0.35); }
+.prompt-input::placeholder { color:var(--ink3); }
+
+/* No-key warning */
+.no-key-warn {
+  background:var(--amber-bg);
+  border:1px solid rgba(146,64,14,0.2);
+  border-radius:8px;
+  padding:9px 12px;
+  font-size:11px;
+  color:var(--amber);
+  display:none;
+  align-items:center;
+  gap:7px;
+  line-height:1.5;
+  cursor:pointer;
+}
+.no-key-warn.show { display:flex; }
+
+/* Extract button */
+.extract-btn {
+  width:100%;
+  background:var(--ink);
+  color:white;
+  border:none;
+  border-radius:10px;
+  padding:13px;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:all 0.2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  letter-spacing:-0.01em;
+  position:relative;
+  overflow:hidden;
+  margin-top:auto;
+}
+.extract-btn::after {
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.06) 0%,transparent 60%);
+  pointer-events:none;
+}
+.extract-btn:hover:not(:disabled) {
+  background:#2a2824;
+  transform:translateY(-1px);
+  box-shadow:0 4px 16px rgba(28,26,22,0.2);
+}
+.extract-btn:active:not(:disabled) { transform:none;box-shadow:none; }
+.extract-btn:disabled {
+  background:var(--bg3);
+  color:var(--ink3);
+  cursor:not-allowed;
+  transform:none;
+}
+.btn-spinner {
+  width:14px;height:14px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:white;
+  border-radius:50%;
+  animation:spin 0.6s linear infinite;
+  display:none;
+}
+.btn-spinner.dark {
+  border-color:rgba(28,26,22,0.2);
+  border-top-color:var(--ink2);
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── Right output panel ─── */
+.output-panel {
+  display:flex;flex-direction:column;
+  min-height:0;
+}
+
+.output-topbar {
+  padding:12px 1.25rem;
+  border-bottom:1px solid var(--line2);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.output-title {
+  font-size:13px;font-weight:600;
+  display:flex;align-items:center;gap:8px;
+}
+.count-badge {
+  background:var(--bg2);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:2px 7px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  color:var(--ink3);
+  display:none;
+}
+.output-actions {
+  display:flex;gap:6px;
+}
+.act-btn {
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:5px 10px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  color:var(--ink2);
+  cursor:pointer;
+  transition:all 0.15s;
+  display:none;
+  align-items:center;gap:5px;
+}
+.act-btn:hover { border-color:rgba(28,26,22,0.25);color:var(--ink); }
+.act-btn.visible { display:flex; }
+.act-btn.ok { border-color:var(--green);color:var(--green); }
+
+/* Empty state */
+.empty-state {
+  flex:1;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:2rem;
+  text-align:center;
+  gap:10px;
+}
+.empty-illustration {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:4px;
+  margin-bottom:8px;
+  opacity:0.4;
+}
+.ec {
+  height:18px;border-radius:3px;
+  background:var(--bg3);
+  border:1px solid var(--line);
+}
+.ec.hd { background:var(--bg2); }
+.ec.w2 { grid-column:span 2; }
+.empty-title {
+  font-family:'Fraunces',serif;
+  font-size:17px;font-weight:400;
+  letter-spacing:-0.02em;
+  color:var(--ink2);
+}
+.empty-sub { font-size:12px;color:var(--ink3);line-height:1.6;max-width:260px; }
+
+/* Output content */
+.output-content {
+  flex:1;
+  overflow:auto;
+  padding:1.25rem;
+  display:none;
+}
+
+/* Table */
+.tbl-wrap {
+  border-radius:10px;
+  border:1px solid var(--line);
+  overflow:auto;
+}
+table.result-tbl {
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+table.result-tbl th {
+  background:var(--bg);
+  padding:9px 14px;
+  text-align:left;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  font-weight:500;
+  letter-spacing:0.05em;
+  color:var(--ink3);
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+  position:sticky;top:0;
+  text-transform:uppercase;
+}
+table.result-tbl td {
+  padding:8px 14px;
+  border-bottom:1px solid var(--line2);
+  color:var(--ink);
+  vertical-align:top;
+  line-height:1.5;
+}
+table.result-tbl tr:last-child td { border-bottom:none; }
+table.result-tbl tr:hover td { background:var(--bg); }
+
+/* Code output */
+.code-out {
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:1rem 1.25rem;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11.5px;
+  color:var(--ink);
+  white-space:pre-wrap;
+  word-break:break-all;
+  line-height:1.75;
+  overflow-x:auto;
+}
+
+/* Error state */
+.error-state {
+  background:var(--red-bg);
+  border:1px solid rgba(153,27,27,0.2);
+  border-radius:10px;
+  padding:1.25rem;
+  font-size:12px;
+  line-height:1.7;
+  color:var(--red);
+}
+.error-state strong { display:block;font-size:13px;margin-bottom:6px; }
+.error-state .err-tips { color:var(--ink2);margin-top:10px; }
+.error-state .err-tips li { margin-left:14px;margin-top:3px; }
+
+/* Status bar */
+.statusbar {
+  padding:8px 1.25rem;
+  border-top:1px solid var(--line2);
+  display:flex;align-items:center;gap:8px;
+  flex-shrink:0;
+}
+.status-led {
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--bg3);
+  flex-shrink:0;
+  transition:background 0.3s;
+}
+.status-led.idle  { background:var(--bg3); }
+.status-led.busy  { background:#f59e0b;animation:blink 0.7s ease-in-out infinite; }
+.status-led.ok    { background:var(--green); }
+.status-led.error { background:var(--red); }
+.status-text {
+  font-size:11px;
+  font-family:'IBM Plex Mono',monospace;
+  color:var(--ink3);
+}
+
+/* ─── Footer ─── */
+footer {
+  position:relative;z-index:1;
+  text-align:center;
+  padding:2rem 1rem 1.5rem;
+  font-size:11px;
+  color:var(--ink3);
+  font-family:'IBM Plex Mono',monospace;
+}
+footer a { color:var(--green);text-decoration:none; }
+footer a:hover { text-decoration:underline; }
+
+/* Image lightbox */
+.lightbox {
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.85);
+  z-index:500;
+  display:none;
+  align-items:center;justify-content:center;
+  cursor:zoom-out;
+}
+.lightbox.open { display:flex; }
+.lightbox img {
+  max-width:90vw;max-height:90vh;
+  border-radius:8px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--ink3)}
+
+/* Responsive */
+@media(max-width:720px){
+  .app-card { grid-template-columns:1fr; }
+  .sidebar { border-right:none;border-bottom:1px solid var(--line); }
+  header { padding:0 1rem; }
+  .container { padding:1.5rem 1rem; }
+  .brand-name { font-size:17px; }
+}
+
+/* Load animation */
+.app-card { animation:rise 0.4s ease both; }
+@keyframes rise {
+  from{opacity:0;transform:translateY(14px)}
+  to{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">🔍</div>
+    <div class="brand-name">Table<span>Lens</span></div>
+  </div>
+  <div class="header-right">
+    <div class="model-pill" id="model-pill" onclick="toggleModelMenu()">
+      <div class="model-dot"></div>
+      <span id="model-pill-label">gemini-3-flash-preview</span>
+      <span style="font-size:9px;opacity:0.5">▼</span>
+      <!-- Model dropdown -->
+      <div class="model-dropdown" id="model-dropdown">
+        <div class="dropdown-section">
+          <div class="dropdown-label">Gemini 3 (Preview)</div>
+          <div class="model-option selected" data-model="gemini-3-flash-preview" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-3-flash-preview</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="model-option-tag tag-best">Latest</span>
+              <span class="checkmark" id="check-gemini-3-flash-preview">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-3.1-flash-lite-preview" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-3.1-flash-lite-preview</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="checkmark" id="check-gemini-3.1-flash-lite-preview" style="display:none">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-3.1-pro-preview" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-3.1-pro-preview</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-best">Best</span>
+              <span class="checkmark" id="check-gemini-3.1-pro-preview" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown-section">
+          <div class="dropdown-label">Gemini 2.5 (Stable)</div>
+          <div class="model-option" data-model="gemini-2.5-flash" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-2.5-flash</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="checkmark" id="check-gemini-2.5-flash" style="display:none">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-2.5-flash-lite" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-2.5-flash-lite</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-fast">Fast</span>
+              <span class="checkmark" id="check-gemini-2.5-flash-lite" style="display:none">✓</span>
+            </div>
+          </div>
+          <div class="model-option" data-model="gemini-2.5-pro" onclick="selectModel(this)">
+            <span class="model-option-name">gemini-2.5-pro</span>
+            <div style="display:flex;align-items:center;gap:5px">
+              <span class="model-option-tag tag-best">Best</span>
+              <span class="checkmark" id="check-gemini-2.5-pro" style="display:none">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
+  </div>
+</header>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Settings</div>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:1.1rem;">
+      <div>
+        <label class="field-label">Gemini API Key</label>
+        <div class="input-wrap">
+          <input type="password" class="text-input" id="key-input" placeholder="AIzaSy…" autocomplete="off" oninput="onKeyInput()" />
+          <button class="input-eye" onclick="toggleEye()">👁</button>
+        </div>
+        <div class="key-status" id="key-status"></div>
+        <div class="field-hint">
+          Free key from <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> — no credit card needed.<br>
+          Saved in your browser only. Never sent anywhere except Google.
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Default prompt suffix</label>
+        <textarea class="prompt-input" id="default-prompt" rows="3" placeholder="e.g. The document is in Khmer. Preserve all characters exactly."></textarea>
+        <div class="field-hint">Appended to every extraction request.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="clearKey()">Clear key</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="Full preview" />
+</div>
+
+<!-- Main -->
+<div class="container">
+  <div class="hero">
+    <div class="hero-tag">✦ AI-Powered &nbsp;·&nbsp; Gemini Vision</div>
+    <h1>Extract tables from<br><em>any image</em></h1>
+    <p class="hero-sub">Upload a photo of a table — get structured data instantly.</p>
+  </div>
+
+  <div class="app-card">
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Image</span>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept="image/*" />
+          <span class="upload-icon">📋</span>
+          <div class="upload-text"><strong>Click or drop image</strong></div>
+          <div class="upload-types">JPG · PNG · WEBP · GIF</div>
+        </div>
+        <div class="preview-card" id="preview-card">
+          <img class="preview-img" id="preview-img" src="" alt="" onclick="openLightbox(this.src)" title="Click to enlarge" />
+          <div class="preview-footer">
+            <span class="preview-name" id="preview-name"></span>
+            <button class="preview-rm" onclick="clearImage()" title="Remove">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Output Format</span>
+        <div class="fmt-tabs">
+          <button class="fmt-tab active" data-fmt="table" onclick="setFmt(this)">
+            <span class="fmt-tab-icon">📊</span>
+            <span class="fmt-tab-label">Table</span>
+          </button>
+          <button class="fmt-tab" data-fmt="json" onclick="setFmt(this)">
+            <span class="fmt-tab-icon">{ }</span>
+            <span class="fmt-tab-label">JSON</span>
+          </button>
+          <button class="fmt-tab" data-fmt="csv" onclick="setFmt(this)">
+            <span class="fmt-tab-icon">📄</span>
+            <span class="fmt-tab-label">CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <span class="sidebar-label">Extra Instructions</span>
+        <textarea class="prompt-input" id="extra-prompt" placeholder="e.g. Preserve Khmer characters exactly. Treat merged cells by repeating values."></textarea>
+      </div>
+
+      <div class="no-key-warn" id="no-key-warn" onclick="openSettings()">
+        <span>⚠</span>
+        <span>No API key set. <strong>Click to add →</strong></span>
+      </div>
+
+      <button class="extract-btn" id="extract-btn" onclick="doExtract()">
+        <div class="btn-spinner" id="btn-spinner"></div>
+        <span id="btn-label">Extract Table</span>
+      </button>
+
+    </div>
+
+    <!-- Output panel -->
+    <div class="output-panel">
+      <div class="output-topbar">
+        <div class="output-title">
+          Result
+          <span class="count-badge" id="count-badge"></span>
+        </div>
+        <div class="output-actions">
+          <button class="act-btn" id="copy-btn" onclick="doCopy()">⎘ Copy</button>
+          <button class="act-btn" id="dl-btn" onclick="doDownload()">↓ Download</button>
+        </div>
+      </div>
+
+      <div class="empty-state" id="empty-state">
+        <div class="empty-illustration">
+          <div class="ec hd w2"></div><div class="ec hd"></div><div class="ec hd"></div><div class="ec hd"></div>
+          <div class="ec w2"></div><div class="ec"></div><div class="ec"></div><div class="ec"></div>
+          <div class="ec w2"></div><div class="ec"></div><div class="ec"></div><div class="ec"></div>
+          <div class="ec w2"></div><div class="ec"></div><div class="ec"></div><div class="ec"></div>
+        </div>
+        <div class="empty-title">No result yet</div>
+        <div class="empty-sub">Upload an image, configure settings, then hit Extract.</div>
+      </div>
+
+      <div class="output-content" id="output-content"></div>
+
+      <div class="statusbar">
+        <div class="status-led idle" id="status-led"></div>
+        <span class="status-text" id="status-text">Ready</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  TableLens — powered by <a href="https://aistudio.google.com" target="_blank">Google Gemini</a> &nbsp;·&nbsp;
+  API key stored locally in your browser &nbsp;·&nbsp;
+  <a href="https://github.com" target="_blank">Deploy on GitHub Pages</a>
+</footer>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let currentFile   = null;
+let currentFmt    = 'table';
+let currentModel  = 'gemini-3-flash-preview';
+let lastRaw       = '';
+let lastRows      = null;
+
+const PREPROCESS = {
+  maxDim: 2200,
+  sharpen: true,
+  grayscale: true,
+  threshold: true,
+  autoCrop: true,
+  cropPadding: 12
+};
+
+const MODELS = [
+  'gemini-3-flash-preview',
+  'gemini-3.1-flash-lite-preview',
+  'gemini-3.1-pro-preview',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro'
+];
+
+// ─── Init ─────────────────────────────────────────────────
+(function init(){
+  const saved = ls('tl_key');
+  if(saved){ setKeyStatus(saved); }
+  const savedModel = ls('tl_model');
+  if(savedModel && MODELS.includes(savedModel)) applyModel(savedModel);
+  const savedPrompt = ls('tl_prompt');
+  if(savedPrompt) document.getElementById('default-prompt').value = savedPrompt;
+  checkKeyWarn();
+  document.getElementById('key-input').value = ls('tl_key') || '';
+})();
+
+// ─── LocalStorage helpers ─────────────────────────────────
+function ls(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lss(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function lsd(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+// ─── Settings modal ───────────────────────────────────────
+function openSettings(){
+  document.getElementById('key-input').value = ls('tl_key')||'';
+  document.getElementById('default-prompt').value = ls('tl_prompt')||'';
+  setKeyStatus(ls('tl_key'));
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settings-modal').classList.remove('open'); }
+document.getElementById('settings-modal').addEventListener('click', function(e){
+  if(e.target === this) closeSettings();
+});
+function saveSettings(){
+  const key = document.getElementById('key-input').value.trim();
+  const prompt = document.getElementById('default-prompt').value.trim();
+  if(key) lss('tl_key', key); else lsd('tl_key');
+  if(prompt) lss('tl_prompt', prompt); else lsd('tl_prompt');
+  checkKeyWarn();
+  closeSettings();
+  setStatus('Settings saved', 'ok');
+  setTimeout(()=>setStatus('Ready','idle'),2000);
+}
+function clearKey(){
+  lsd('tl_key');
+  document.getElementById('key-input').value = '';
+  setKeyStatus(null);
+  checkKeyWarn();
+}
+function toggleEye(){
+  const i = document.getElementById('key-input');
+  i.type = i.type==='password'?'text':'password';
+}
+function onKeyInput(){ setKeyStatus(document.getElementById('key-input').value.trim()); }
+function setKeyStatus(key){
+  const el = document.getElementById('key-status');
+  if(!key){ el.innerHTML=''; return; }
+  const ok = key.startsWith('AIza') && key.length > 20;
+  el.innerHTML = `<span class="key-status-dot" style="background:${ok?'var(--green)':'var(--amber)'}"></span>
+    <span style="color:${ok?'var(--green)':'var(--amber)'}; font-size:11px; font-family:var(--mono)">
+      ${ok ? 'Key looks valid' : 'Key format unusual'}</span>`;
+}
+function checkKeyWarn(){
+  const w = document.getElementById('no-key-warn');
+  w.classList.toggle('show', !ls('tl_key'));
+}
+
+// ─── Model selector ───────────────────────────────────────
+function toggleModelMenu(e){
+  const dd = document.getElementById('model-dropdown');
+  dd.classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  if(!document.getElementById('model-pill').contains(e.target))
+    document.getElementById('model-dropdown').classList.remove('open');
+});
+function selectModel(el){
+  el.closest('.model-dropdown').classList.remove('open');
+  const model = el.dataset.model;
+  applyModel(model);
+  lss('tl_model', model);
+  event.stopPropagation();
+}
+function applyModel(model){
+  currentModel = model;
+  document.getElementById('model-pill-label').textContent = model;
+  document.querySelectorAll('.model-option').forEach(o=>{
+    const isThis = o.dataset.model === model;
+    o.classList.toggle('selected', isThis);
+    const chk = document.getElementById('check-'+o.dataset.model);
+    if(chk) chk.style.display = isThis ? 'inline':'none';
+  });
+}
+
+// ─── File upload ──────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+
+fileInput.addEventListener('change', e => e.target.files[0] && loadFile(e.target.files[0]));
+
+uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('over');
+  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+function loadFile(file){
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-name').textContent = file.name;
+    document.getElementById('preview-card').style.display = 'block';
+    uploadZone.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+function clearImage(){
+  currentFile = null;
+  fileInput.value = '';
+  document.getElementById('preview-card').style.display = 'none';
+  uploadZone.style.display = 'block';
+}
+
+// ─── Format ───────────────────────────────────────────────
+function setFmt(btn){
+  document.querySelectorAll('.fmt-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFmt = btn.dataset.fmt;
+}
+
+// ─── Lightbox ─────────────────────────────────────────────
+function openLightbox(src){
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){ document.getElementById('lightbox').classList.remove('open'); }
+
+// ─── Status ───────────────────────────────────────────────
+function setStatus(msg, state='idle'){
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-led').className = 'status-led ' + state;
+}
+
+// ─── Extract ──────────────────────────────────────────────
+async function doExtract(){
+  const apiKey = ls('tl_key');
+  if(!apiKey){ openSettings(); return; }
+  if(!currentFile){ alert('Please upload an image first.'); return; }
+
+  const btn = document.getElementById('extract-btn');
+  const spinner = document.getElementById('btn-spinner');
+  const label = document.getElementById('btn-label');
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  label.textContent = 'Extracting…';
+  setStatus('Sending to ' + currentModel + '…', 'busy');
+
+  // Hide previous result
+  document.getElementById('output-content').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('copy-btn').classList.remove('visible');
+  document.getElementById('dl-btn').classList.remove('visible');
+  document.getElementById('count-badge').style.display = 'none';
+
+  try {
+    const processed = await preprocessImage(currentFile);
+    const base64 = processed.data;
+    const mime   = processed.mime;
+    const extra  = [document.getElementById('extra-prompt').value.trim(), ls('tl_prompt')||''].filter(Boolean).join(' ');
+
+    const fmtPrompts = {
+      table: `Extract ALL data from this table image. Return ONLY a valid JSON array of row objects, using column headers as keys. Preserve every character exactly — including Khmer, numbers, symbols, arrows (↑↓). No markdown, no explanation, just raw JSON array.`,
+      json:  `Extract ALL data from this table image. Return ONLY a valid JSON array of row objects, using column headers as keys. Preserve every character exactly. No markdown fences, no explanation — just raw JSON.`,
+      csv:   `Extract ALL data from this table image as CSV. First row = column headers. Preserve every character exactly including Khmer. Wrap values with commas in double quotes. Return ONLY the CSV, nothing else.`
+    };
+
+    const fullPrompt = fmtPrompts[currentFmt] + (extra ? '\n\nAdditional: ' + extra : '');
+
+    const raw = await requestModel(apiKey, fullPrompt, base64, mime);
+    if(!raw) throw new Error('Empty response from model.');
+
+    let combinedRaw = raw.trim();
+    if(currentFmt !== 'csv'){
+      let rows = extractJsonRows(combinedRaw) || [];
+      const initialArray = extractJsonArray(combinedRaw);
+      if(!initialArray && rows.length){
+        const maxPasses = 2;
+        for(let i=0;i<maxPasses;i++){
+          setStatus('Continuing…', 'busy');
+          const lastRow = rows[rows.length - 1];
+          const contPrompt = buildContinuationPrompt(lastRow, extra);
+          const contRaw = await requestModel(apiKey, contPrompt, base64, mime);
+          if(!contRaw) break;
+          const contRows = extractJsonRows(contRaw) || [];
+          if(!contRows.length) break;
+          rows = rows.concat(contRows);
+          combinedRaw = JSON.stringify(rows, null, 2);
+          if(extractJsonArray(contRaw)) break;
+        }
+      } else if(initialArray){
+        combinedRaw = JSON.stringify(initialArray, null, 2);
+      }
+    }
+
+    lastRaw = combinedRaw.trim();
+    renderResult(lastRaw);
+    setStatus('Done — ' + currentModel, 'ok');
+
+  } catch(err){
+    renderError(err.message);
+    setStatus('Error: ' + err.message.slice(0,80), 'error');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    label.textContent = 'Extract Table';
+  }
+}
+
+async function requestModel(apiKey, prompt, base64, mime){
+  const body = {
+    contents:[{ parts:[
+      { text: prompt },
+      { inline_data:{ mime_type: mime, data: base64 } }
+    ]}],
+    generationConfig:{ temperature: 0.05, maxOutputTokens: 16384 }
+  };
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`,
+    { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }
+  );
+  const data = await res.json();
+
+  if(!res.ok){
+    const msg = data?.error?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+function buildContinuationPrompt(lastRow, extra){
+  const base = `Continue extracting the same table image. Return ONLY a JSON array of remaining rows, using the same columns and order. Start AFTER this last row:\n${JSON.stringify(lastRow)}\nIf there are no more rows, return [] only.`;
+  return base + (extra ? '\n\nAdditional: ' + extra : '');
+}
+
+function toBase64(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function preprocessImage(file){
+  const img = await loadImage(file);
+  const scale = Math.min(1, PREPROCESS.maxDim / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * (scale < 1 ? 1 / scale : 1)));
+  const h = Math.max(1, Math.round(img.height * (scale < 1 ? 1 / scale : 1)));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, w, h);
+
+  let imageData = ctx.getImageData(0, 0, w, h);
+  if(PREPROCESS.grayscale){
+    imageData = applyGrayscale(imageData);
+  }
+  if(PREPROCESS.sharpen){
+    imageData = applySharpen(imageData, w, h);
+  }
+  if(PREPROCESS.threshold){
+    imageData = applyThreshold(imageData);
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  if(PREPROCESS.autoCrop){
+    const bounds = findInkBounds(imageData, w, h);
+    if(bounds){
+      const pad = PREPROCESS.cropPadding;
+      const x = Math.max(0, bounds.x - pad);
+      const y = Math.max(0, bounds.y - pad);
+      const cw = Math.min(w - x, bounds.w + pad * 2);
+      const ch = Math.min(h - y, bounds.h + pad * 2);
+      const cropped = document.createElement('canvas');
+      cropped.width = cw;
+      cropped.height = ch;
+      const cctx = cropped.getContext('2d');
+      cctx.drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
+      const dataUrl = cropped.toDataURL('image/png');
+      return { data: dataUrl.split(',')[1], mime: 'image/png' };
+    }
+  }
+
+  const dataUrl = canvas.toDataURL('image/png');
+  return { data: dataUrl.split(',')[1], mime: 'image/png' };
+}
+
+function loadImage(file){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function applyGrayscale(imageData){
+  const d = imageData.data;
+  for(let i=0;i<d.length;i+=4){
+    const v = Math.round(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
+    d[i]=v; d[i+1]=v; d[i+2]=v;
+  }
+  return imageData;
+}
+
+function applySharpen(imageData, w, h){
+  const src = imageData.data;
+  const out = new Uint8ClampedArray(src.length);
+  const k = [0,-1,0,-1,5,-1,0,-1,0];
+  for(let y=1;y<h-1;y++){
+    for(let x=1;x<w-1;x++){
+      for(let c=0;c<3;c++){
+        let sum = 0;
+        let idx = 0;
+        for(let ky=-1;ky<=1;ky++){
+          for(let kx=-1;kx<=1;kx++){
+            const i = ((y+ky)*w + (x+kx))*4 + c;
+            sum += src[i] * k[idx++];
+          }
+        }
+        const o = (y*w + x)*4 + c;
+        out[o] = Math.max(0, Math.min(255, sum));
+      }
+      const a = (y*w + x)*4 + 3;
+      out[a] = src[a];
+    }
+  }
+  imageData.data.set(out);
+  return imageData;
+}
+
+function applyThreshold(imageData){
+  const d = imageData.data;
+  for(let i=0;i<d.length;i+=4){
+    const v = d[i];
+    const t = v < 180 ? 0 : 255;
+    d[i]=t; d[i+1]=t; d[i+2]=t;
+  }
+  return imageData;
+}
+
+function findInkBounds(imageData, w, h){
+  const d = imageData.data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i = (y*w + x)*4;
+      const v = d[i];
+      if(v < 200){
+        if(x < minX) minX = x;
+        if(y < minY) minY = y;
+        if(x > maxX) maxX = x;
+        if(y > maxY) maxY = y;
+      }
+    }
+  }
+  if(maxX < 0 || maxY < 0) return null;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+// ─── Render ───────────────────────────────────────────────
+function stripCodeFences(raw){
+  return raw.replace(/^```[a-z]*\n?/i,'').replace(/```$/,'').trim();
+}
+
+function extractJsonArray(raw){
+  const cleaned = stripCodeFences(raw).trim();
+  try {
+    const direct = JSON.parse(cleaned);
+    if(Array.isArray(direct)) return direct;
+  } catch(e){}
+
+  // Try to locate the first top-level JSON array in mixed text.
+  const s = cleaned;
+  let start = -1;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+
+  for(let i=0;i<s.length;i++){
+    const ch = s[i];
+    if(inStr){
+      if(esc){ esc = false; continue; }
+      if(ch === '\\'){ esc = true; continue; }
+      if(ch === '"') inStr = false;
+      continue;
+    }
+    if(ch === '"'){ inStr = true; continue; }
+    if(ch === '['){ if(depth === 0) start = i; depth++; continue; }
+    if(ch === ']'){
+      if(depth > 0) depth--;
+      if(depth === 0 && start !== -1){
+        const slice = s.slice(start, i + 1);
+        try {
+          const parsed = JSON.parse(slice);
+          if(Array.isArray(parsed)) return parsed;
+        } catch(e){}
+        start = -1;
+      }
+    }
+  }
+  return null;
+}
+
+function extractJsonRows(raw){
+  const arr = extractJsonArray(raw);
+  if(arr) return arr;
+
+  // Best-effort recovery: extract complete JSON objects.
+  const s = stripCodeFences(raw).trim();
+  const rows = [];
+  let start = -1;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+
+  for(let i=0;i<s.length;i++){
+    const ch = s[i];
+    if(inStr){
+      if(esc){ esc = false; continue; }
+      if(ch === '\\'){ esc = true; continue; }
+      if(ch === '"') inStr = false;
+      continue;
+    }
+    if(ch === '"'){ inStr = true; continue; }
+    if(ch === '{'){ if(depth === 0) start = i; depth++; continue; }
+    if(ch === '}'){
+      if(depth > 0) depth--;
+      if(depth === 0 && start !== -1){
+        const objText = s.slice(start, i + 1);
+        try {
+          const obj = JSON.parse(objText);
+          if(obj && typeof obj === 'object' && !Array.isArray(obj)) rows.push(obj);
+        } catch(e){}
+        start = -1;
+      }
+    }
+  }
+
+  return rows.length ? rows : null;
+}
+
+function renderResult(raw){
+  const content = document.getElementById('output-content');
+  const empty   = document.getElementById('empty-state');
+  empty.style.display = 'none';
+  content.style.display = 'block';
+  content.innerHTML = '';
+
+  document.getElementById('copy-btn').classList.add('visible');
+  document.getElementById('dl-btn').classList.add('visible');
+
+  // Try to parse JSON
+  const rows = extractJsonRows(raw);
+  if(currentFmt === 'csv'){
+    if(rows && rows.length){
+      renderTable(rows, content);
+      lastRows = rows;
+      lastRaw = rowsToCsv(rows);
+      showBadge(rows.length + ' rows');
+      return;
+    }
+
+    const pre = document.createElement('pre');
+    pre.className = 'code-out';
+    pre.textContent = raw;
+    content.appendChild(pre);
+    lastRows = null;
+    const lines = raw.trim().split('\n').length - 1;
+    showBadge(lines + ' rows');
+    return;
+  }
+  if(!rows){
+    const pre = document.createElement('pre');
+    pre.className = 'code-out';
+    pre.textContent = raw;
+    content.appendChild(pre);
+    lastRows = null;
+    return;
+  }
+
+  if(currentFmt === 'json'){
+    const pre = document.createElement('pre');
+    pre.className = 'code-out';
+    pre.textContent = JSON.stringify(rows, null, 2);
+    content.appendChild(pre);
+    lastRaw = JSON.stringify(rows, null, 2);
+    lastRows = rows;
+    showBadge(rows.length + ' rows');
+    return;
+  }
+
+  // Table view
+  if(!rows.length){ content.textContent = 'No rows found.'; return; }
+  renderTable(rows, content);
+  lastRaw = JSON.stringify(rows, null, 2);
+  lastRows = rows;
+  showBadge(rows.length + ' rows');
+}
+
+function renderTable(rows, content){
+  const keys = Object.keys(rows[0] || {});
+  const wrap  = document.createElement('div'); wrap.className='tbl-wrap';
+  const tbl   = document.createElement('table'); tbl.className='result-tbl';
+  const thead = document.createElement('thead');
+  const hrow  = document.createElement('tr');
+  keys.forEach(k=>{ const th=document.createElement('th'); th.textContent=k; hrow.appendChild(th); });
+  thead.appendChild(hrow); tbl.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row=>{
+    const tr=document.createElement('tr');
+    keys.forEach(k=>{
+      const td=document.createElement('td');
+      td.textContent = row[k] ?? '';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody); wrap.appendChild(tbl); content.appendChild(wrap);
+}
+
+function renderError(msg){
+  const content = document.getElementById('output-content');
+  document.getElementById('empty-state').style.display = 'none';
+  content.style.display = 'block';
+  content.innerHTML = `<div class="error-state">
+    <strong>Extraction failed</strong>
+    ${escHtml(msg)}
+    <ul class="err-tips">
+      <li>Check your API key is valid (Settings ⚙)</li>
+      <li>Make sure the image is clear and has a table</li>
+      <li>Try a different model (e.g. gemini-2.5-pro)</li>
+      <li>Check your free-tier quota at aistudio.google.com</li>
+    </ul>
+  </div>`;
+}
+
+function showBadge(txt){
+  const b = document.getElementById('count-badge');
+  b.textContent = txt;
+  b.style.display = 'inline';
+}
+
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function rowsToCsv(rows){
+  if(!rows || !rows.length) return '';
+  const keySet = new Set();
+  rows.forEach(r=>Object.keys(r || {}).forEach(k=>keySet.add(k)));
+  const keys = Array.from(keySet);
+  const esc = v => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return '"' + s.replace(/"/g,'""') + '"';
+  };
+  const header = keys.map(esc).join(',');
+  const body = rows.map(r=>keys.map(k=>esc(r ? r[k] : '')).join(','));
+  return [header, ...body].join('\n');
+}
+
+// ─── Copy & Download ──────────────────────────────────────
+function doCopy(){
+  navigator.clipboard.writeText(lastRaw).then(()=>{
+    const btn = document.getElementById('copy-btn');
+    btn.classList.add('ok');
+    btn.textContent = '✓ Copied';
+    setTimeout(()=>{ btn.classList.remove('ok'); btn.textContent='⎘ Copy'; }, 2000);
+  });
+}
+function doDownload(){
+  const isTable = currentFmt === 'table';
+  const ext  = (currentFmt === 'csv' || isTable) ? 'csv' : 'json';
+  const mime = ext === 'csv' ? 'text/csv' : 'application/json';
+  const payload = (ext === 'csv')
+    ? (currentFmt === 'csv' ? lastRaw : rowsToCsv(lastRows))
+    : lastRaw;
+  const blob = new Blob([payload],{type:mime+';charset=utf-8'});
+  const a    = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `table-extract.${ext}`;
+  a.click();
+}
+</script>
+</body>
+</html>
