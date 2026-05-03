@@ -9,6 +9,7 @@ let lastRows      = null;
 
 const MAX_IMAGES = 30;
 const MAX_PDF_MB = 10;
+const API_BASE_URL = 'https://tablense.vercel.app';
 
 let pdfjsLoadPromise = null;
 const PDFJS_LIB_SRC = './vendor/pdfjs/pdf.min.mjs';
@@ -306,7 +307,7 @@ async function doExtract(){
 }
 
 async function requestModel(payload){
-  const res = await fetch('/api/extract', {
+  const res = await fetch(`${API_BASE_URL}/api/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
